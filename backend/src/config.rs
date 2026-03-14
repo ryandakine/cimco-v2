@@ -27,7 +27,7 @@ impl Config {
         let server_host = env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
         let session_secret = env::var("SESSION_SECRET")
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
-        let jwt_secret = env::var("SESSION_SECRET")
+        let jwt_secret = env::var("JWT_SECRET")
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
         let cors_origins = env::var("CORS_ORIGINS")
             .unwrap_or_else(|_| "http://localhost:3000".to_string())

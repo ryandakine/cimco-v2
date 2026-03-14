@@ -31,20 +31,29 @@ impl RateLimiter {
     pub fn check_rate_limit(&self, ip: &str) -> bool {
         let now = Instant::now();
 
-        // Get or create entry for this IP
         let mut entry = self.attempts.entry(ip.to_string()).or_default();
-        
-        // Filter out expired timestamps (outside the window)
+
+        // Filter out expired timestamps
         entry.retain(|&timestamp| now.duration_since(timestamp) < self.window);
-        
+
         // Check if limit exceeded
         if entry.len() >= self.max_requests {
             return false;
         }
-        
+
         // Add current attempt
         entry.push(now);
         true
+    }
+
+    /// Remove all expired IP entries to prevent unbounded memory growth.
+    /// Should be called periodically (e.g., from a background task).
+    pub fn cleanup_all_expired(&self) {
+        let now = Instant::now();
+        self.attempts.retain(|_, timestamps| {
+            timestamps.retain(|&ts| now.duration_since(ts) < self.window);
+            !timestamps.is_empty()
+        });
     }
 
     /// Get the number of seconds until the next request is allowed
@@ -66,20 +75,6 @@ impl RateLimiter {
         0
     }
 
-    /// Clean up expired entries for a specific IP (called automatically in check_rate_limit)
-    #[allow(dead_code)]
-    pub fn cleanup_expired(&self, ip: &str) {
-        let now = Instant::now();
-        
-        if let Some(mut entry) = self.attempts.get_mut(ip) {
-            entry.retain(|&timestamp| now.duration_since(timestamp) < self.window);
-            // If empty after cleanup, remove the entry
-            if entry.is_empty() {
-                drop(entry);
-                self.attempts.remove(ip);
-            }
-        }
-    }
 }
 
 /// Default rate limiter for login endpoint: 5 requests per minute
@@ -116,14 +111,12 @@ pub async fn rate_limit_handler(
         Ok(next.run(request).await)
     } else {
         let retry_after = rate_limiter.get_retry_after(&ip);
-        
-        let _response = Response::builder()
+
+        Response::builder()
             .status(StatusCode::TOO_MANY_REQUESTS)
             .header(header::RETRY_AFTER, retry_after.to_string())
             .body(axum::body::Body::empty())
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        
-        Err(StatusCode::TOO_MANY_REQUESTS)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
     }
 }
 
