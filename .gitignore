@@ -1,0 +1,44 @@
+# Rust
+backend/target/
+backend/Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+*.profraw
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker volumes
+postgres_data/
+certbot_data/
+certbot_www/
