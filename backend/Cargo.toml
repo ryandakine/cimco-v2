@@ -1,0 +1,42 @@
+[package]
+name = "cimco-inventory-v2"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+
+[[bin]]
+name = "cimco-inventory-v2"
+path = "src/main.rs"
+
+[[bin]]
+name = "seed"
+path = "src/bin/seed.rs"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1.35", features = ["full"] }
+sqlx = { version = "0.7", features = ["postgres", "runtime-tokio", "tls-native-tls", "chrono", "uuid"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+argon2 = "0.5"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+dotenvy = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+tower = "0.4"
+http = "1.0"
+
+[dev-dependencies]
+tokio-test = "0.4"
+http-body-util = "0.1"
+tower = { version = "0.4", features = ["util"] }
+mockall = "0.12"
+claims = "0.7"
+reqwest = { version = "0.11", features = ["json"] }
+
+# Enable test coverage for lib target
+[lib]
+name = "cimco_inventory_v2"
+path = "src/lib.rs"
