@@ -1,7 +1,7 @@
 use chrono::Utc;
 use sqlx::{PgPool, Row};
 
-use crate::error::Result;
+use crate::error::{AppError, Result};
 use crate::inventory::model::{
     CreatePartRequest, CsvExportRow, InventoryTransaction, Part, PartsQuery, StockState,
     UpdatePartRequest,
@@ -296,13 +296,25 @@ impl PartRepository {
         pool: &PgPool,
         id: i32,
         change_amount: i32,
-        new_quantity: i32,
         reason: Option<&str>,
         changed_by: i32,
     ) -> Result<InventoryTransaction> {
         let mut tx = pool.begin().await?;
 
-        // Update part quantity
+        // Lock row and get current quantity
+        let current_quantity: i32 = sqlx::query_scalar("SELECT quantity FROM parts WHERE id = $1 FOR UPDATE")
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await?;
+
+        let new_quantity = current_quantity + change_amount;
+
+        // Validate quantity >= 0
+        if new_quantity < 0 {
+            return Err(AppError::Validation("Insufficient quantity".to_string()));
+        }
+
+        // Update quantity
         sqlx::query("UPDATE parts SET quantity = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2")
             .bind(new_quantity)
             .bind(id)

@@ -53,23 +53,10 @@ impl InventoryService {
         req: AdjustQuantityRequest,
         changed_by: i32,
     ) -> Result<crate::inventory::model::InventoryTransaction> {
-        // Get current quantity
-        let part = PartRepository::get_by_id(pool, id).await?;
-        
-        let new_quantity = part.quantity + req.change_amount;
-        
-        // Prevent negative quantities
-        if new_quantity < 0 {
-            return Err(AppError::Validation(
-                "Quantity cannot be negative".to_string(),
-            ));
-        }
-
         PartRepository::adjust_quantity(
             pool,
             id,
             req.change_amount,
-            new_quantity,
             req.reason.as_deref(),
             changed_by,
         )

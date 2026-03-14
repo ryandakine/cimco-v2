@@ -9,11 +9,13 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::Router;
-use config::Config;
-use db::DbPool;
-use http::routes::create_router;
+use crate::auth::jwt::JwtConfig;
+use crate::config::Config;
+use crate::db::DbPool;
+use crate::http::routes::create_router;
 use tower_http::{
-    cors::{Any, CorsLayer},
+    cors::CorsLayer,
+    limit::RequestBodyLimitLayer,
     trace::TraceLayer,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -39,7 +41,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = DbPool::new(&config).await?;
     let pool = Arc::new(pool);
 
-    // Create CORS layer
+    // Create JWT config
+    let jwt_config = Arc::new(JwtConfig::new(config.jwt_secret.clone()));
+
+    // Create CORS layer with validated origins
     let cors = CorsLayer::new()
         .allow_origin(
             config
@@ -57,8 +62,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ])
         .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::header::AUTHORIZATION]);
 
-    // Create router
-    let app = create_router(pool, cors);
+    // Create router with JWT config and body limit
+    let app = create_router(pool, cors, jwt_config)
+        .layer(RequestBodyLimitLayer::new(config.max_request_body_size));
 
     // Create socket address
     let addr: SocketAddr = format!("{}:{}", config.server_host, config.server_port)

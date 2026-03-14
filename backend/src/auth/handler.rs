@@ -6,32 +6,24 @@ use axum::{
 use serde_json::json;
 use std::sync::Arc;
 
-use crate::auth::model::LoginRequest;
+use crate::auth::jwt::{self, JwtConfig};
+use crate::auth::model::{CreateUserRequest, LoginRequest, Session, UserRole};
 use crate::auth::service::AuthService;
 use crate::db::DbPool;
 use crate::error::{AppError, Result};
 
 pub async fn login(
     Extension(pool): Extension<Arc<DbPool>>,
+    Extension(jwt_config): Extension<Arc<JwtConfig>>,
     Json(req): Json<LoginRequest>,
 ) -> Result<impl IntoResponse> {
-    let response = AuthService::login(pool.get(), req).await?;
+    let response = AuthService::login(pool.get(), req, &jwt_config).await?;
     Ok((StatusCode::OK, Json(response)))
 }
 
-pub async fn logout(
-    Extension(pool): Extension<Arc<DbPool>>,
-    headers: HeaderMap,
-) -> Result<impl IntoResponse> {
-    // Extract token from Authorization header
-    let token = headers
-        .get("authorization")
-        .and_then(|h| h.to_str().ok())
-        .and_then(|h| h.strip_prefix("Bearer "))
-        .ok_or_else(|| AppError::Unauthorized("Missing authorization token".to_string()))?;
-
-    AuthService::logout(pool.get(), token).await?;
-
+pub async fn logout() -> Result<impl IntoResponse> {
+    // JWT tokens are stateless - client should discard the token
+    // For server-side revocation, a token denylist would be needed
     Ok((
         StatusCode::OK,
         Json(json!({"message": "Logged out successfully"})),
@@ -39,24 +31,14 @@ pub async fn logout(
 }
 
 pub async fn get_session(
-    Extension(pool): Extension<Arc<DbPool>>,
-    headers: HeaderMap,
+    Extension(claims): Extension<jwt::Claims>,
 ) -> Result<impl IntoResponse> {
-    // Extract token from Authorization header
-    let token = headers
-        .get("authorization")
-        .and_then(|h| h.to_str().ok())
-        .and_then(|h| h.strip_prefix("Bearer "))
-        .ok_or_else(|| AppError::Unauthorized("Missing authorization token".to_string()))?;
-
-    let session = AuthService::validate_session(pool.get(), token).await?;
-
     Ok((
         StatusCode::OK,
         Json(json!({
-            "user_id": session.user_id,
-            "username": session.username,
-            "role": session.role.as_str(),
+            "user_id": claims.sub,
+            "username": claims.username,
+            "role": claims.role,
             "valid": true,
         })),
     ))
@@ -64,11 +46,11 @@ pub async fn get_session(
 
 pub async fn create_user_handler(
     Extension(pool): Extension<Arc<DbPool>>,
-    Extension(session): Extension<crate::auth::model::Session>,
-    Json(req): Json<crate::auth::model::CreateUserRequest>,
+    Extension(session): Extension<Session>,
+    Json(req): Json<CreateUserRequest>,
 ) -> Result<impl IntoResponse> {
     // Only admins can create users
-    if session.role != crate::auth::model::UserRole::Admin {
+    if session.role != UserRole::Admin {
         return Err(AppError::Unauthorized(
             "Only admins can create users".to_string(),
         ));
@@ -80,4 +62,16 @@ pub async fn create_user_handler(
         StatusCode::CREATED,
         Json(crate::auth::model::UserResponse::from(user)),
     ))
+}
+
+/// Extract session from claims (used by middleware)
+pub fn session_from_claims(claims: jwt::Claims) -> Result<Session> {
+    let role = UserRole::try_from(claims.role.as_str())
+        .map_err(|e| AppError::Internal(e))?;
+    
+    Ok(Session {
+        user_id: claims.sub,
+        username: claims.username,
+        role,
+    })
 }

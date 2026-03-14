@@ -3,9 +3,10 @@ use argon2::{
     Argon2,
 };
 use sqlx::PgPool;
-use uuid::Uuid;
 
+use crate::auth::jwt::{create_token, validate_token, JwtConfig};
 use crate::auth::model::{LoginRequest, LoginResponse, Session, User, UserResponse};
+use crate::auth::validation::{validate_password, validate_username};
 use crate::error::{AppError, Result};
 
 pub struct AuthService;
@@ -27,7 +28,11 @@ impl AuthService {
         Ok(argon2.verify_password(password.as_bytes(), &parsed_hash).is_ok())
     }
 
-    pub async fn login(pool: &PgPool, req: LoginRequest) -> Result<LoginResponse> {
+    pub async fn login(
+        pool: &PgPool,
+        req: LoginRequest,
+        jwt_config: &JwtConfig,
+    ) -> Result<LoginResponse> {
         let user: User = sqlx::query_as::<_, User>(
             r#"
             SELECT id, username, password_hash, role, created_at
@@ -44,26 +49,8 @@ impl AuthService {
             return Err(AppError::Unauthorized("Invalid credentials".to_string()));
         }
 
-        // Generate simple session token (in production, use JWT or proper session management)
-        let token = Uuid::new_v4().to_string();
-
-        // Store session in database (optional, for token validation)
-        sqlx::query(
-            r#"
-            INSERT INTO sessions (token, user_id, expires_at)
-            VALUES ($1, $2, NOW() + INTERVAL '24 hours')
-            ON CONFLICT (token) DO UPDATE SET expires_at = NOW() + INTERVAL '24 hours'
-            "#,
-        )
-        .bind(&token)
-        .bind(user.id)
-        .execute(pool)
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to store session: {}", e);
-            e
-        })
-        .ok();
+        // Create JWT token
+        let token = create_token(user.id, &user.username, &user.role, jwt_config)?;
 
         tracing::info!("User {} logged in successfully", user.username);
 
@@ -73,36 +60,22 @@ impl AuthService {
         })
     }
 
-    pub async fn logout(pool: &PgPool, token: &str) -> Result<()> {
-        sqlx::query("DELETE FROM sessions WHERE token = $1")
-            .bind(token)
-            .execute(pool)
-            .await?;
-
-        tracing::info!("Session invalidated");
+    pub async fn logout(_token: &str) -> Result<()> {
+        // JWT tokens cannot be revoked server-side without a denylist
+        // Client should discard the token
+        tracing::info!("Logout requested (token discarded on client side)");
         Ok(())
     }
 
-    pub async fn validate_session(pool: &PgPool, token: &str) -> Result<Session> {
-        let row: (i32, String, String) = sqlx::query_as(
-            r#"
-            SELECT u.id, u.username, u.role
-            FROM sessions s
-            JOIN users u ON s.user_id = u.id
-            WHERE s.token = $1 AND s.expires_at > NOW()
-            "#,
-        )
-        .bind(token)
-        .fetch_optional(pool)
-        .await?
-        .ok_or_else(|| AppError::Unauthorized("Invalid or expired session".to_string()))?;
+    pub async fn validate_session(token: &str, jwt_config: &JwtConfig) -> Result<Session> {
+        let claims = validate_token(token, jwt_config)?;
 
-        let role = crate::auth::model::UserRole::try_from(row.2.as_str())
+        let role = crate::auth::model::UserRole::try_from(claims.role.as_str())
             .map_err(|e| AppError::Internal(e))?;
 
         Ok(Session {
-            user_id: row.0,
-            username: row.1,
+            user_id: claims.sub,
+            username: claims.username,
             role,
         })
     }
@@ -113,6 +86,10 @@ impl AuthService {
         password: &str,
         role: &crate::auth::model::UserRole,
     ) -> Result<User> {
+        // Validate username and password before creating user
+        validate_username(username)?;
+        validate_password(password)?;
+
         let password_hash = Self::hash_password(password)?;
         let role_str = role.as_str();
 

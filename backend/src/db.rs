@@ -1,4 +1,6 @@
 use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
+use std::time::Duration;
 
 use crate::config::Config;
 use crate::error::Result;
@@ -8,7 +10,11 @@ pub struct DbPool(pub PgPool);
 
 impl DbPool {
     pub async fn new(config: &Config) -> Result<Self> {
-        let pool = PgPool::connect(&config.database_url)
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .min_connections(config.db_pool_min)
+            .max_connections(config.db_pool_max)
+            .acquire_timeout(Duration::from_secs(30))
+            .connect(&config.database_url)
             .await
             .map_err(|e| crate::error::AppError::Database(e.to_string()))?;
         
@@ -18,7 +24,11 @@ impl DbPool {
             .await
             .map_err(|e| crate::error::AppError::Database(e.to_string()))?;
         
-        tracing::info!("Database connection established successfully");
+        tracing::info!(
+            "Database connection established (pool: {}-{} connections)",
+            config.db_pool_min,
+            config.db_pool_max
+        );
         Ok(Self(pool))
     }
 
