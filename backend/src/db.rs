@@ -1,5 +1,4 @@
 use sqlx::PgPool;
-use sqlx::postgres::PgPoolOptions;
 use std::time::Duration;
 
 use crate::config::Config;
@@ -10,7 +9,7 @@ pub struct DbPool(pub PgPool);
 
 impl DbPool {
     pub async fn new(config: &Config) -> Result<Self> {
-        let pool = sqlx::postgres::PgPoolOptions::new()
+        let pool = PgPoolOptions::new()
             .min_connections(config.db_pool_min)
             .max_connections(config.db_pool_max)
             .acquire_timeout(Duration::from_secs(30))

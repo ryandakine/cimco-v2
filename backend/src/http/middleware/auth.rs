@@ -5,8 +5,8 @@ use axum::{
 };
 use std::sync::Arc;
 
+use crate::auth::handler::session_from_claims;
 use crate::auth::jwt::{self, JwtConfig};
-use crate::auth::model::{Session, UserRole};
 use crate::error::AppError;
 
 pub async fn auth_middleware(
@@ -37,15 +37,8 @@ pub async fn auth_middleware(
     // Validate token using JwtConfig
     let claims = jwt::validate_token(token, &jwt_config)?;
 
-    // Convert claims to Session for backward compatibility with handlers
-    let role = UserRole::try_from(claims.role.as_str())
-        .map_err(|e| AppError::Internal(e))?;
-    
-    let session = Session {
-        user_id: claims.sub,
-        username: claims.username,
-        role,
-    };
+    // Convert claims to Session using shared function
+    let session = session_from_claims(claims)?;
 
     // Add session to request extensions
     request.extensions_mut().insert(session);

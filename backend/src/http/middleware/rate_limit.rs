@@ -66,19 +66,18 @@ impl RateLimiter {
         0
     }
 
-    /// Clean up expired entries for a specific IP (called automatically in check_rate_limit)
-    #[allow(dead_code)]
-    pub fn cleanup_expired(&self, ip: &str) {
+    /// Clean up all expired entries across all IPs
+    /// Call this periodically (e.g., from a background task) to prevent memory growth
+    pub fn cleanup_all_expired(&self) {
         let now = Instant::now();
         
-        if let Some(mut entry) = self.attempts.get_mut(ip) {
+        // Remove expired timestamps from each entry
+        for mut entry in self.attempts.iter_mut() {
             entry.retain(|&timestamp| now.duration_since(timestamp) < self.window);
-            // If empty after cleanup, remove the entry
-            if entry.is_empty() {
-                drop(entry);
-                self.attempts.remove(ip);
-            }
         }
+        
+        // Remove empty entries
+        self.attempts.retain(|_, entry| !entry.is_empty());
     }
 }
 
@@ -117,13 +116,13 @@ pub async fn rate_limit_handler(
     } else {
         let retry_after = rate_limiter.get_retry_after(&ip);
         
-        let _response = Response::builder()
+        let response = Response::builder()
             .status(StatusCode::TOO_MANY_REQUESTS)
             .header(header::RETRY_AFTER, retry_after.to_string())
             .body(axum::body::Body::empty())
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         
-        Err(StatusCode::TOO_MANY_REQUESTS)
+        Ok(response)
     }
 }
 
