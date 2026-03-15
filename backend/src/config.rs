@@ -23,7 +23,10 @@ impl Config {
         let server_port = env::var("SERVER_PORT")
             .unwrap_or_else(|_| "8081".to_string())
             .parse()
-            .expect("SERVER_PORT must be a valid u16");
+            .map_err(|_| std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "SERVER_PORT must be a valid u16",
+            ))?;
         let server_host = env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
         let session_secret = env::var("SESSION_SECRET")
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
@@ -46,15 +49,24 @@ impl Config {
         let db_pool_min = env::var("DB_POOL_MIN")
             .unwrap_or_else(|_| "5".to_string())
             .parse()
-            .expect("DB_POOL_MIN must be a valid u32");
+            .map_err(|_| std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "DB_POOL_MIN must be a valid u32",
+            ))?;
         let db_pool_max = env::var("DB_POOL_MAX")
             .unwrap_or_else(|_| "20".to_string())
             .parse()
-            .expect("DB_POOL_MAX must be a valid u32");
+            .map_err(|_| std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "DB_POOL_MAX must be a valid u32",
+            ))?;
         let max_request_body_size = env::var("MAX_REQUEST_BODY_SIZE")
             .unwrap_or_else(|_| "1048576".to_string())
             .parse()
-            .expect("MAX_REQUEST_BODY_SIZE must be a valid usize");
+            .map_err(|_| std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "MAX_REQUEST_BODY_SIZE must be a valid usize",
+            ))?;
 
         Ok(Config {
             database_url,

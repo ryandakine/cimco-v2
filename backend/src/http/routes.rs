@@ -6,22 +6,26 @@ use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 
 use crate::auth::handler::{create_user_handler, get_session, login, logout};
-use crate::auth::jwt::JwtConfig;
+use crate::auth::jwt::{JwtConfig, TokenDenylist};
 use crate::db::DbPool;
 use crate::http::middleware::auth::auth_middleware;
+use crate::http::middleware::rate_limit::rate_limit_middleware;
 use crate::inventory::handler::{
     adjust_quantity, create_part, export_csv, get_part, get_transaction_history, list_parts,
     update_part,
 };
 
 pub fn create_router(
-    pool: Arc<DbPool>, 
+    pool: Arc<DbPool>,
     cors_layer: CorsLayer,
     jwt_config: Arc<JwtConfig>,
+    login_rate_limiter: Arc<crate::http::middleware::rate_limit::RateLimiter>,
+    token_denylist: Arc<TokenDenylist>,
 ) -> Router {
-    // Public routes
+    // Public routes (login is rate-limited)
     let public_routes = Router::new()
-        .route("/api/v2/auth/login", post(login));
+        .route("/api/v2/auth/login", post(login))
+        .layer(axum::middleware::from_fn(rate_limit_middleware));
 
     // Protected auth routes
     let auth_routes = Router::new()
@@ -52,6 +56,8 @@ pub fn create_router(
         .layer(cors_layer)
         .layer(axum::extract::Extension(pool))
         .layer(axum::extract::Extension(jwt_config))
+        .layer(axum::extract::Extension(token_denylist))
+        .layer(axum::extract::Extension(login_rate_limiter))
 }
 
 async fn health_check() -> &'static str {

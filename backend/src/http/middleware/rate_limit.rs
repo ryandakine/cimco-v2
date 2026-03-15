@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use axum::{
-    extract::{ConnectInfo, Request, State},
+    extract::{ConnectInfo, Extension, Request, State},
     http::{header, StatusCode},
     middleware::Next,
     response::Response,
@@ -107,6 +107,28 @@ pub async fn rate_limit_handler(
 ) -> Result<Response, StatusCode> {
     let ip = addr.ip().to_string();
     
+    if rate_limiter.check_rate_limit(&ip) {
+        Ok(next.run(request).await)
+    } else {
+        let retry_after = rate_limiter.get_retry_after(&ip);
+
+        Response::builder()
+            .status(StatusCode::TOO_MANY_REQUESTS)
+            .header(header::RETRY_AFTER, retry_after.to_string())
+            .body(axum::body::Body::empty())
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+    }
+}
+
+/// Rate limit middleware using Extension extractor (for use with `from_fn`)
+pub async fn rate_limit_middleware(
+    Extension(rate_limiter): Extension<Arc<RateLimiter>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    request: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let ip = addr.ip().to_string();
+
     if rate_limiter.check_rate_limit(&ip) {
         Ok(next.run(request).await)
     } else {

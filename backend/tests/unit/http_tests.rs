@@ -263,9 +263,11 @@ fn test_validate_trait_negative_age() {
 fn test_create_router_function_exists() {
     fn _check_router_signature() {
         use std::sync::Arc;
+        use cimco_inventory_v2::auth::jwt::{JwtConfig, TokenDenylist};
         use cimco_inventory_v2::db::DbPool;
-        
-        let _: fn(Arc<DbPool>, tower_http::cors::CorsLayer) -> axum::Router =
+        use cimco_inventory_v2::http::middleware::rate_limit::RateLimiter;
+
+        let _: fn(Arc<DbPool>, tower_http::cors::CorsLayer, Arc<JwtConfig>, Arc<RateLimiter>, Arc<TokenDenylist>) -> axum::Router =
             cimco_inventory_v2::http::routes::create_router;
     }
 }
@@ -279,14 +281,15 @@ fn test_auth_middleware_function_exists() {
     use axum::middleware::Next;
     use axum::response::Response;
     use std::sync::Arc;
-    use cimco_inventory_v2::db::DbPool;
+    use cimco_inventory_v2::auth::jwt::{JwtConfig, TokenDenylist};
     use cimco_inventory_v2::error::AppError;
-    
+
     fn _check_middleware_signature(
-        ext: Extension<Arc<DbPool>>,
+        jwt: Extension<Arc<JwtConfig>>,
+        denylist: Extension<Arc<TokenDenylist>>,
         req: Request,
         next: Next,
     ) -> impl std::future::Future<Output = Result<Response, AppError>> {
-        cimco_inventory_v2::http::middleware::auth::auth_middleware(ext, req, next)
+        cimco_inventory_v2::http::middleware::auth::auth_middleware(jwt, denylist, req, next)
     }
 }

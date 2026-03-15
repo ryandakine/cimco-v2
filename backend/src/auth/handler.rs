@@ -1,12 +1,14 @@
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
 use axum::{
     extract::{Extension, Json},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
 use serde_json::json;
-use std::sync::Arc;
 
-use crate::auth::jwt::{self, JwtConfig};
+use crate::auth::jwt::{self, JwtConfig, TokenDenylist};
 use crate::auth::model::{CreateUserRequest, LoginRequest, Session, UserRole};
 use crate::auth::service::AuthService;
 use crate::db::DbPool;
@@ -21,9 +23,27 @@ pub async fn login(
     Ok((StatusCode::OK, Json(response)))
 }
 
-pub async fn logout() -> Result<impl IntoResponse> {
-    // JWT tokens are stateless - client should discard the token
-    // For server-side revocation, a token denylist would be needed
+pub async fn logout(
+    Extension(denylist): Extension<Arc<TokenDenylist>>,
+    Extension(jwt_config): Extension<Arc<JwtConfig>>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse> {
+    let auth_header = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+        .ok_or_else(|| AppError::Unauthorized("Missing authorization header".to_string()))?;
+
+    let token = jwt::extract_bearer_token(auth_header)
+        .ok_or_else(|| AppError::Unauthorized("Invalid authorization header".to_string()))?;
+
+    // Decode claims to get expiration time
+    let claims = jwt::decode_claims_unvalidated(token, &jwt_config)?;
+    let now = chrono::Utc::now().timestamp() as u64;
+    let exp = claims.exp as u64;
+    let ttl = exp.saturating_sub(now);
+
+    denylist.deny(token.to_string(), Instant::now() + Duration::from_secs(ttl));
+
     Ok((
         StatusCode::OK,
         Json(json!({"message": "Logged out successfully"})),
