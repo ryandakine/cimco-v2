@@ -99,12 +99,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Server starting on http://{}", addr);
 
-    // Start server with ConnectInfo for rate limiter IP extraction
+    // Start server with ConnectInfo for rate limiter IP extraction and graceful shutdown
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
-    ).await?;
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await?;
 
+    tracing::info!("Server shut down gracefully");
     Ok(())
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("Failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => tracing::info!("Received Ctrl+C, starting graceful shutdown"),
+        _ = terminate => tracing::info!("Received SIGTERM, starting graceful shutdown"),
+    }
 }

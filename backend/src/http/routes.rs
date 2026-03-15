@@ -27,15 +27,11 @@ pub fn create_router(
         .route("/api/v2/auth/login", post(login))
         .layer(axum::middleware::from_fn(rate_limit_middleware));
 
-    // Protected auth routes
-    let auth_routes = Router::new()
+    // All protected routes behind a single auth middleware layer
+    let protected_routes = Router::new()
         .route("/api/v2/auth/logout", post(logout))
         .route("/api/v2/auth/session", get(get_session))
         .route("/api/v2/auth/users", post(create_user_handler))
-        .layer(axum::middleware::from_fn(auth_middleware));
-
-    // Inventory routes (protected)
-    let inventory_routes = Router::new()
         .route("/api/v2/parts", get(list_parts).post(create_part))
         .route("/api/v2/parts/export", get(export_csv))
         .route("/api/v2/parts/:id", get(get_part).put(update_part))
@@ -50,8 +46,7 @@ pub fn create_router(
     // Combine all routes
     Router::new()
         .merge(public_routes)
-        .merge(auth_routes)
-        .merge(inventory_routes)
+        .merge(protected_routes)
         .merge(health_routes)
         .layer(cors_layer)
         .layer(axum::extract::Extension(pool))

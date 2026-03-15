@@ -5,9 +5,11 @@ use axum::{
     extract::{ConnectInfo, Extension, Request, State},
     http::{header, StatusCode},
     middleware::Next,
-    response::Response,
+    response::{IntoResponse, Response},
+    Json,
 };
 use dashmap::DashMap;
+use serde_json::json;
 
 /// In-memory rate limiter using DashMap for thread-safe storage
 pub struct RateLimiter {
@@ -104,19 +106,24 @@ pub async fn rate_limit_handler(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     request: Request,
     next: Next,
-) -> Result<Response, StatusCode> {
+) -> Response {
     let ip = addr.ip().to_string();
-    
+
     if rate_limiter.check_rate_limit(&ip) {
-        Ok(next.run(request).await)
+        next.run(request).await
     } else {
         let retry_after = rate_limiter.get_retry_after(&ip);
 
-        Response::builder()
-            .status(StatusCode::TOO_MANY_REQUESTS)
-            .header(header::RETRY_AFTER, retry_after.to_string())
-            .body(axum::body::Body::empty())
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        (
+            StatusCode::TOO_MANY_REQUESTS,
+            [(header::RETRY_AFTER, retry_after.to_string())],
+            Json(json!({
+                "error": "Too many requests",
+                "status": 429,
+                "retry_after": retry_after,
+            })),
+        )
+            .into_response()
     }
 }
 
@@ -126,19 +133,24 @@ pub async fn rate_limit_middleware(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     request: Request,
     next: Next,
-) -> Result<Response, StatusCode> {
+) -> Response {
     let ip = addr.ip().to_string();
 
     if rate_limiter.check_rate_limit(&ip) {
-        Ok(next.run(request).await)
+        next.run(request).await
     } else {
         let retry_after = rate_limiter.get_retry_after(&ip);
 
-        Response::builder()
-            .status(StatusCode::TOO_MANY_REQUESTS)
-            .header(header::RETRY_AFTER, retry_after.to_string())
-            .body(axum::body::Body::empty())
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        (
+            StatusCode::TOO_MANY_REQUESTS,
+            [(header::RETRY_AFTER, retry_after.to_string())],
+            Json(json!({
+                "error": "Too many requests",
+                "status": 429,
+                "retry_after": retry_after,
+            })),
+        )
+            .into_response()
     }
 }
 

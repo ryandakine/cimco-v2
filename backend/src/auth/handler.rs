@@ -19,6 +19,13 @@ pub async fn login(
     Extension(jwt_config): Extension<Arc<JwtConfig>>,
     Json(req): Json<LoginRequest>,
 ) -> Result<impl IntoResponse> {
+    if req.username.trim().is_empty() {
+        return Err(AppError::Validation("Username is required".to_string()));
+    }
+    if req.password.is_empty() {
+        return Err(AppError::Validation("Password is required".to_string()));
+    }
+
     let response = AuthService::login(pool.get(), req, &jwt_config).await?;
     Ok((StatusCode::OK, Json(response)))
 }
