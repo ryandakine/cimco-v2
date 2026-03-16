@@ -5,6 +5,7 @@ backend/Cargo.lock
 *.pdb
 
 # Node
+node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
@@ -31,6 +32,8 @@ Thumbs.db
 
 # Test coverage
 coverage/
+test-results/
+playwright-report/
 *.profraw
 
 # Database
