@@ -1,0 +1,300 @@
+{
+  "workflow_id": "pr-review",
+  "kinds": {
+    "run_input": {
+      "name": "Run input",
+      "description": "PR details: URL, branch, description, or raw diff content.",
+      "item_schema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "diff_analysis": {
+      "name": "Diff analysis",
+      "description": "Per-file change analysis from the PR diff.",
+      "item_schema": {
+        "type": "object",
+        "required": [
+          "file_path",
+          "change_type",
+          "summary"
+        ],
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path of the changed file."
+          },
+          "change_type": {
+            "type": "string",
+            "enum": [
+              "added",
+              "modified",
+              "deleted"
+            ],
+            "description": "Type of change."
+          },
+          "module": {
+            "type": "string",
+            "description": "Module area (backend, frontend, database, ops, config)."
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short summary of what changed in this file."
+          },
+          "diff_hunks": {
+            "type": "string",
+            "description": "Relevant diff hunks (Markdown code block)."
+          },
+          "lines_added": {
+            "type": "number"
+          },
+          "lines_removed": {
+            "type": "number"
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "derived_from": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string"
+                },
+                "item_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "item_id"
+              ]
+            }
+          },
+          "reasoning": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "architecture_findings": {
+      "name": "Architecture findings",
+      "description": "Architectural review findings from the PR.",
+      "item_schema": {
+        "type": "object",
+        "required": [
+          "severity",
+          "description"
+        ],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "warning",
+              "info"
+            ],
+            "description": "Finding severity."
+          },
+          "file_path": {
+            "type": "string",
+            "description": "File where issue was found."
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the architectural concern."
+          },
+          "suggested_fix": {
+            "type": "string",
+            "description": "Suggested remediation."
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "derived_from": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string"
+                },
+                "item_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "item_id"
+              ]
+            }
+          },
+          "reasoning": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "quality_findings": {
+      "name": "Quality & security findings",
+      "description": "Code quality, security, and performance findings.",
+      "item_schema": {
+        "type": "object",
+        "required": [
+          "severity",
+          "category",
+          "description"
+        ],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "warning",
+              "info"
+            ],
+            "description": "Finding severity."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "security",
+              "quality",
+              "performance",
+              "testing"
+            ],
+            "description": "Finding category."
+          },
+          "file_path": {
+            "type": "string",
+            "description": "File where issue was found."
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the issue."
+          },
+          "suggested_fix": {
+            "type": "string",
+            "description": "Suggested remediation."
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "derived_from": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string"
+                },
+                "item_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "item_id"
+              ]
+            }
+          },
+          "reasoning": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "review_report": {
+      "name": "Review report",
+      "description": "Final PR review report with verdict and grouped findings.",
+      "item_schema": {
+        "type": "object",
+        "required": [
+          "verdict",
+          "risk_level",
+          "summary"
+        ],
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "request-changes",
+              "comment"
+            ],
+            "description": "Review verdict."
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "description": "Overall risk level."
+          },
+          "summary": {
+            "type": "string",
+            "description": "Executive summary (Markdown)."
+          },
+          "full_report": {
+            "type": "string",
+            "description": "Complete review report (Markdown)."
+          },
+          "next_steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Actionable next steps."
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "derived_from": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string"
+                },
+                "item_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "item_id"
+              ]
+            }
+          },
+          "reasoning": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  }
+}

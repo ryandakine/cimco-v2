@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "cognetivy": {
+      "command": "cognetivy",
+      "args": ["mcp"],
+      "cwd": "/home/user/cimco-v2"
+    }
+  }
+}

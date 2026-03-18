@@ -1,0 +1,65 @@
+{
+  "workflow_id": "pr-review",
+  "version_id": "v2",
+  "name": "v1",
+  "nodes": [
+    {
+      "id": "gather_diff",
+      "type": "PROMPT",
+      "input_collections": [
+        "run_input"
+      ],
+      "output_collections": [
+        "diff_analysis"
+      ],
+      "required_skills": [
+        "cognetivy"
+      ],
+      "prompt": "Read the PR diff from run input (PR URL, branch name, or diff content). Use git diff, gh CLI, or file reads to gather the full changeset. For each changed file, output: file path, change type (added/modified/deleted), a short summary of what changed, and the relevant diff hunks. Group changes by module/area (e.g. backend, frontend, database, ops)."
+    },
+    {
+      "id": "architecture_review",
+      "type": "PROMPT",
+      "input_collections": [
+        "diff_analysis"
+      ],
+      "output_collections": [
+        "architecture_findings"
+      ],
+      "required_skills": [
+        "cognetivy"
+      ],
+      "prompt": "Review the diff analysis for architectural concerns. Check for: breaking API changes, incorrect layering (handler calling repo directly, skipping service), missing migrations for schema changes, inconsistent patterns vs existing codebase conventions, dependency issues, and module boundary violations. Output each finding with severity (critical/warning/info), file path, description, and suggested fix. Include reasoning and cite the diff_analysis items you derived from."
+    },
+    {
+      "id": "quality_security_review",
+      "type": "PROMPT",
+      "input_collections": [
+        "diff_analysis"
+      ],
+      "output_collections": [
+        "quality_findings"
+      ],
+      "required_skills": [
+        "cognetivy"
+      ],
+      "prompt": "Review the diff analysis for code quality and security issues. Check for: OWASP top 10 vulnerabilities (SQL injection, XSS, command injection, etc.), error handling gaps, missing input validation, hardcoded secrets, unsafe unwrap/panic paths (Rust), missing null checks (TypeScript), performance regressions (N+1 queries, unnecessary clones, large allocations), test coverage gaps, and dead code. Output each finding with severity (critical/warning/info), category (security/quality/performance/testing), file path, description, and suggested fix. Include reasoning and cite diff_analysis items."
+    },
+    {
+      "id": "review_summary",
+      "type": "PROMPT",
+      "input_collections": [
+        "architecture_findings",
+        "quality_findings"
+      ],
+      "output_collections": [
+        "review_report"
+      ],
+      "required_skills": [
+        "cognetivy"
+      ],
+      "prompt": "Synthesize architecture and quality findings into a final PR review report. Include: overall verdict (approve/request-changes/comment), risk level (low/medium/high), executive summary (2-3 sentences), grouped findings by severity, and actionable next steps. Format as clean Markdown suitable for posting as a PR comment. Cite all findings via derived_from."
+    }
+  ],
+  "created_at": "2026-03-18T11:04:50.049Z"
+}
