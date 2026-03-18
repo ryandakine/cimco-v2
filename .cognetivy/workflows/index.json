@@ -1,0 +1,11 @@
+{
+  "current_workflow_id": "wf_default",
+  "workflows": [
+    {
+      "workflow_id": "wf_default",
+      "name": "Default workflow",
+      "description": "Example workflow demonstrating collection→node→collection flow.",
+      "current_version_id": "v1"
+    }
+  ]
+}

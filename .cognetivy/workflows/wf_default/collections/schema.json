@@ -1,0 +1,278 @@
+{
+  "workflow_id": "wf_default",
+  "kinds": {
+    "run_input": {
+      "name": "Run input",
+      "description": "System collection containing the run input payload.",
+      "item_schema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "sources": {
+      "name": "Sources",
+      "description": "Verified sources (e.g. articles, docs). The url field must be a URL the agent has actually retrieved or opened, not invented. Use citations/derived_from on other kinds to point to these.",
+      "item_schema": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "URL that has been verified (retrieved or opened); do not invent."
+          },
+          "title": {
+            "type": "string",
+            "description": "Short title for the source."
+          },
+          "excerpt": {
+            "type": "string",
+            "description": "Brief excerpt or summary."
+          },
+          "citations": {
+            "type": "array",
+            "description": "Sources for this item: external (url + title) or internal (item_ref to another collection item). Use for every claim or decision so outputs are traceable to sources.",
+            "items": {
+              "type": "object",
+              "description": "One citation: either external source (url) or reference to another collection item (item_ref).",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "External source URL (only if you actually retrieved or opened it; do not invent)."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Short title for the source."
+                },
+                "excerpt": {
+                  "type": "string",
+                  "description": "Optional excerpt or quote."
+                },
+                "item_ref": {
+                  "type": "object",
+                  "description": "Reference to another collection item in this run (kind + item_id).",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "description": "Collection kind (e.g. sources, product_brief)."
+                    },
+                    "item_id": {
+                      "type": "string",
+                      "description": "Id of the item in that collection."
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "item_id"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "derived_from": {
+            "type": "array",
+            "description": "Chain of thinking: collection items this was derived from (kind + item_id). Enables tracing why this conclusion was reached.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "description": "Collection kind of the source item."
+                },
+                "item_id": {
+                  "type": "string",
+                  "description": "Id of the item this was derived from."
+                }
+              },
+              "required": [
+                "kind",
+                "item_id"
+              ]
+            }
+          },
+          "reasoning": {
+            "type": "string",
+            "description": "Optional short explanation of why this was decided or how it was derived (chain of thought). Supports traceability."
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "summary": {
+      "name": "Summary",
+      "description": "Synthesized summary derived from sources. Use Markdown for content.",
+      "item_schema": {
+        "type": "object",
+        "required": [
+          "summary"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "Main content (Markdown)."
+          },
+          "title": {
+            "type": "string",
+            "description": "Optional short title."
+          },
+          "citations": {
+            "type": "array",
+            "description": "Sources for this item: external (url + title) or internal (item_ref to another collection item). Use for every claim or decision so outputs are traceable to sources.",
+            "items": {
+              "type": "object",
+              "description": "One citation: either external source (url) or reference to another collection item (item_ref).",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "External source URL (only if you actually retrieved or opened it; do not invent)."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Short title for the source."
+                },
+                "excerpt": {
+                  "type": "string",
+                  "description": "Optional excerpt or quote."
+                },
+                "item_ref": {
+                  "type": "object",
+                  "description": "Reference to another collection item in this run (kind + item_id).",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "description": "Collection kind (e.g. sources, product_brief)."
+                    },
+                    "item_id": {
+                      "type": "string",
+                      "description": "Id of the item in that collection."
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "item_id"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "derived_from": {
+            "type": "array",
+            "description": "Chain of thinking: collection items this was derived from (kind + item_id). Enables tracing why this conclusion was reached.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "description": "Collection kind of the source item."
+                },
+                "item_id": {
+                  "type": "string",
+                  "description": "Id of the item this was derived from."
+                }
+              },
+              "required": [
+                "kind",
+                "item_id"
+              ]
+            }
+          },
+          "reasoning": {
+            "type": "string",
+            "description": "Optional short explanation of why this was decided or how it was derived (chain of thought). Supports traceability."
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "approved_summary": {
+      "name": "Approved summary",
+      "description": "Human-approved summary. Use Markdown for content.",
+      "item_schema": {
+        "type": "object",
+        "required": [
+          "summary"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "Approved content (Markdown)."
+          },
+          "title": {
+            "type": "string",
+            "description": "Optional short title."
+          },
+          "citations": {
+            "type": "array",
+            "description": "Sources for this item: external (url + title) or internal (item_ref to another collection item). Use for every claim or decision so outputs are traceable to sources.",
+            "items": {
+              "type": "object",
+              "description": "One citation: either external source (url) or reference to another collection item (item_ref).",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "External source URL (only if you actually retrieved or opened it; do not invent)."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Short title for the source."
+                },
+                "excerpt": {
+                  "type": "string",
+                  "description": "Optional excerpt or quote."
+                },
+                "item_ref": {
+                  "type": "object",
+                  "description": "Reference to another collection item in this run (kind + item_id).",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "description": "Collection kind (e.g. sources, product_brief)."
+                    },
+                    "item_id": {
+                      "type": "string",
+                      "description": "Id of the item in that collection."
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "item_id"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "derived_from": {
+            "type": "array",
+            "description": "Chain of thinking: collection items this was derived from (kind + item_id). Enables tracing why this conclusion was reached.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "description": "Collection kind of the source item."
+                },
+                "item_id": {
+                  "type": "string",
+                  "description": "Id of the item this was derived from."
+                }
+              },
+              "required": [
+                "kind",
+                "item_id"
+              ]
+            }
+          },
+          "reasoning": {
+            "type": "string",
+            "description": "Optional short explanation of why this was decided or how it was derived (chain of thought). Supports traceability."
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  }
+}
