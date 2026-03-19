@@ -8,9 +8,11 @@ use serde_json::Value;
 use std::sync::Arc;
 use tower::ServiceExt;
 
+use cimco_inventory_v2::auth::jwt::{JwtConfig, TokenDenylist};
 use cimco_inventory_v2::auth::model::{LoginRequest, LoginResponse};
 use cimco_inventory_v2::config::Config;
 use cimco_inventory_v2::db::DbPool;
+use cimco_inventory_v2::http::middleware::rate_limit;
 use cimco_inventory_v2::http::routes::create_router;
 
 /// Create a test app with an in-memory/test database
@@ -25,7 +27,11 @@ pub async fn create_test_app() -> Router {
         server_port: 0, // Don't need port for tests
         server_host: "127.0.0.1".to_string(),
         session_secret: "test_secret_key_for_testing_only".to_string(),
+        jwt_secret: "test_jwt_secret_for_testing_only".to_string(),
         cors_origins: vec!["http://localhost:3000".to_string()],
+        db_pool_min: 1,
+        db_pool_max: 5,
+        max_request_body_size: 1048576,
     };
 
     let pool = DbPool::new(&config).await.expect("Failed to create test database pool");
@@ -37,7 +43,11 @@ pub async fn create_test_app() -> Router {
         .allow_methods(tower_http::cors::Any)
         .allow_headers(tower_http::cors::Any);
 
-    create_router(pool, cors)
+    let jwt_config = Arc::new(JwtConfig::new("test_jwt_secret_for_testing_only".to_string()));
+    let login_rate_limiter = rate_limit::default_login_rate_limiter();
+    let token_denylist = Arc::new(TokenDenylist::new());
+
+    create_router(pool, cors, jwt_config, login_rate_limiter, token_denylist)
 }
 
 /// Create a test app without database (for simple handler tests)

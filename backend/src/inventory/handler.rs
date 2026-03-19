@@ -70,6 +70,12 @@ pub async fn adjust_quantity(
     Path(id): Path<i32>,
     Json(req): Json<AdjustQuantityRequest>,
 ) -> Result<impl IntoResponse> {
+    if req.change_amount == 0 {
+        return Err(AppError::Validation(
+            "Change amount must be non-zero".to_string(),
+        ));
+    }
+
     let transaction =
         InventoryService::adjust_quantity(pool.get(), id, req, session.user_id).await?;
     Ok((StatusCode::OK, Json(transaction)))

@@ -1,0 +1,124 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Replace expect() panics with error returns in Config",
+      "description": "Replace all .expect() calls in config.rs with .map_err() to return std::io::Error, consistent with how other required env vars are handled. Currently SERVER_PORT, DB_POOL_MIN, DB_POOL_MAX, and MAX_REQUEST_BODY_SIZE use .expect() which panics on invalid input instead of returning a clean error.",
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [],
+      "details": "Replace each `.expect()` pattern in `Config::from_env()` with `.map_err()` using `std::io::ErrorKind::InvalidInput`. Four variables need updating: SERVER_PORT (u16), DB_POOL_MIN (u32), DB_POOL_MAX (u32), MAX_REQUEST_BODY_SIZE (usize). The `from_env()` return type already uses `Result<Self, std::io::Error>` so no signature change is needed.",
+      "testStrategy": "1. Set SERVER_PORT to 'abc' and verify a clean error message instead of a panic.\n2. Set DB_POOL_MIN to '-1' and verify proper error.\n3. Verify default values still work when env vars are unset.\n4. Run existing unit/integration tests to confirm no regressions.",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Replace SERVER_PORT expect() with map_err()",
+          "description": "Change the SERVER_PORT parse call from .expect() to .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, \"SERVER_PORT must be a valid u16\"))?",
+          "status": "pending",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "Replace DB_POOL_MIN expect() with map_err()",
+          "description": "Change the DB_POOL_MIN parse call from .expect() to .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, \"DB_POOL_MIN must be a valid u32\"))?",
+          "status": "pending",
+          "dependencies": []
+        },
+        {
+          "id": 3,
+          "title": "Replace DB_POOL_MAX expect() with map_err()",
+          "description": "Change the DB_POOL_MAX parse call from .expect() to .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, \"DB_POOL_MAX must be a valid u32\"))?",
+          "status": "pending",
+          "dependencies": []
+        },
+        {
+          "id": 4,
+          "title": "Replace MAX_REQUEST_BODY_SIZE expect() with map_err()",
+          "description": "Change the MAX_REQUEST_BODY_SIZE parse call from .expect() to .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, \"MAX_REQUEST_BODY_SIZE must be a valid usize\"))?",
+          "status": "pending",
+          "dependencies": []
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Integrate rate limiter on login endpoint",
+      "description": "Wire the existing RateLimiter (already implemented and tested in rate_limit.rs) into the login route. The rate limiter code exists but is never applied to any route, leaving login open to brute-force attacks.",
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [1],
+      "details": "1. In main.rs, instantiate `default_login_rate_limiter()` and spawn a background cleanup task running every 5 minutes.\n2. In routes.rs, accept `Arc<RateLimiter>` and apply `rate_limit_handler` as a middleware layer specifically on the login route.\n3. Ensure the server uses `.into_make_service_with_connect_info::<SocketAddr>()` so the rate limiter can extract client IPs.\n4. Pass the rate limiter Arc through to the router.",
+      "testStrategy": "1. Send 5 login requests rapidly and verify the 6th returns 429 with Retry-After header.\n2. Verify different IPs are tracked independently.\n3. Wait 60 seconds and verify the rate limit resets.\n4. Verify other endpoints (parts, auth/session) are not rate-limited.\n5. Run existing integration tests.",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Instantiate RateLimiter in main.rs",
+          "description": "Create the login rate limiter using `default_login_rate_limiter()`, wrap in Arc, and spawn a background tokio task that calls `cleanup_all_expired()` every 5 minutes.",
+          "status": "pending",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "Update create_router() signature to accept RateLimiter",
+          "description": "Modify the `create_router()` function in routes.rs to accept `Arc<RateLimiter>` as a parameter. Pass it from main.rs.",
+          "status": "pending",
+          "dependencies": [1]
+        },
+        {
+          "id": 3,
+          "title": "Apply rate limit middleware to login route",
+          "description": "Split the login route into its own Router and apply `rate_limit_handler` as a layer using `from_fn_with_state`. Merge it back into the main router.",
+          "status": "pending",
+          "dependencies": [2]
+        },
+        {
+          "id": 4,
+          "title": "Ensure ConnectInfo<SocketAddr> is available",
+          "description": "Verify or update main.rs to use `.into_make_service_with_connect_info::<SocketAddr>()` instead of `.into_make_service()` so the rate limiter middleware can extract client IP addresses.",
+          "status": "pending",
+          "dependencies": [3]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Implement JWT token denylist for logout",
+      "description": "Add an in-memory token denylist so that logout actually invalidates tokens. Currently the logout handler is a no-op — it returns success but the JWT remains valid for up to 24 hours.",
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [1, 2],
+      "details": "1. Add `TokenDenylist` struct in jwt.rs using DashMap<String, Instant> to store denied tokens with their expiration time.\n2. Update the logout handler to extract the bearer token, decode its expiration, and add it to the denylist.\n3. Update auth middleware to check the denylist before accepting a token.\n4. Instantiate the denylist in main.rs, pass it as an Extension, and spawn a cleanup task every 10 minutes.\n5. No new crates needed — DashMap is already a dependency.",
+      "testStrategy": "1. Login, get a token, call logout, then try using the token — should get 401.\n2. Login with a second account, verify its token still works after the first account logs out.\n3. Verify denylist cleanup removes entries after token expiration.\n4. Restart server and verify old tokens work (denylist is in-memory only).\n5. Run existing auth integration tests.",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create TokenDenylist struct in jwt.rs",
+          "description": "Add `TokenDenylist` struct with DashMap<String, Instant>. Implement `new()`, `deny(token, expires_at)`, `is_denied(token)`, and `cleanup_expired()` methods.",
+          "status": "pending",
+          "dependencies": []
+        },
+        {
+          "id": 2,
+          "title": "Update logout handler to deny tokens",
+          "description": "Modify `logout()` in handler.rs to accept `Extension<Arc<TokenDenylist>>` and `HeaderMap`. Extract the bearer token, decode its expiration claim, calculate TTL, and call `denylist.deny()`.",
+          "status": "pending",
+          "dependencies": [1]
+        },
+        {
+          "id": 3,
+          "title": "Add denylist check to auth middleware",
+          "description": "In auth.rs middleware, after token validation succeeds, extract `Arc<TokenDenylist>` from request extensions and check `is_denied()`. Return 401 if the token is on the denylist.",
+          "status": "pending",
+          "dependencies": [1]
+        },
+        {
+          "id": 4,
+          "title": "Wire TokenDenylist into main.rs and routes.rs",
+          "description": "Instantiate `Arc<TokenDenylist>` in main.rs, add it as an Extension layer on the router, and spawn a background cleanup task every 10 minutes.",
+          "status": "pending",
+          "dependencies": [2, 3]
+        }
+      ]
+    }
+  ]
+}

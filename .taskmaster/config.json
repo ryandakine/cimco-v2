@@ -1,0 +1,22 @@
+{
+  "models": {
+    "main": {
+      "provider": "anthropic",
+      "modelId": "claude-sonnet-4-6"
+    },
+    "research": {
+      "provider": "anthropic",
+      "modelId": "claude-sonnet-4-6"
+    },
+    "fallback": {
+      "provider": "anthropic",
+      "modelId": "claude-haiku-4-5-20251001"
+    }
+  },
+  "global": {
+    "logLevel": "info",
+    "defaultSubtasks": 3,
+    "defaultPriority": "medium",
+    "projectName": "CIMCO Inventory v2 - Backend Improvements"
+  }
+}

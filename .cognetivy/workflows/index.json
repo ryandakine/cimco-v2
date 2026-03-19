@@ -1,0 +1,17 @@
+{
+  "current_workflow_id": "pr-review",
+  "workflows": [
+    {
+      "workflow_id": "wf_default",
+      "name": "Default workflow",
+      "description": "Example workflow demonstrating collection→node→collection flow.",
+      "current_version_id": "v1"
+    },
+    {
+      "workflow_id": "pr-review",
+      "name": "PR Review Assistant",
+      "description": "Review pull requests with architecture, quality, and risk lenses",
+      "current_version_id": "v2"
+    }
+  ]
+}

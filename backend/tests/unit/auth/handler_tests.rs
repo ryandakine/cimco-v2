@@ -11,21 +11,21 @@ use cimco_inventory_v2::auth::model::LoginRequest;
 fn test_login_handler_exists() {
     // Verify the handler function signature exists
     fn _check_handler_signature() {
-        let _: fn(_, _) -> _ = handler::login;
+        let _: fn(_, _, _) -> _ = handler::login;
     }
 }
 
 #[test]
 fn test_logout_handler_exists() {
     fn _check_handler_signature() {
-        let _: fn(_, _) -> _ = handler::logout;
+        let _: fn(_, _, _) -> _ = handler::logout;
     }
 }
 
 #[test]
 fn test_get_session_handler_exists() {
     fn _check_handler_signature() {
-        let _: fn(_, _) -> _ = handler::get_session;
+        let _: fn(_) -> _ = handler::get_session;
     }
 }
 

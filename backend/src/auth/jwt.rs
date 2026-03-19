@@ -1,11 +1,14 @@
+use std::time::Instant;
+
 use chrono::{Duration, Utc};
+use dashmap::DashMap;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
 use crate::auth::model::UserRole;
 use crate::error::{AppError, Result};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: i32,           // user_id
     pub username: String,
@@ -71,6 +74,49 @@ pub fn validate_token(token: &str, config: &JwtConfig) -> Result<Claims> {
 /// Extract bearer token from Authorization header
 pub fn extract_bearer_token(auth_header: &str) -> Option<&str> {
     auth_header.strip_prefix("Bearer ")
+}
+
+/// In-memory denylist for revoked JWT tokens.
+/// Tokens are stored until their natural expiration, then cleaned up.
+pub struct TokenDenylist {
+    denied: DashMap<String, Instant>,
+}
+
+impl TokenDenylist {
+    pub fn new() -> Self {
+        Self {
+            denied: DashMap::new(),
+        }
+    }
+
+    /// Add a token to the denylist. It will be kept until `expires_at`.
+    pub fn deny(&self, token: String, expires_at: Instant) {
+        self.denied.insert(token, expires_at);
+    }
+
+    /// Check if a token has been denied.
+    pub fn is_denied(&self, token: &str) -> bool {
+        self.denied.contains_key(token)
+    }
+
+    /// Remove expired entries to prevent unbounded memory growth.
+    pub fn cleanup_expired(&self) {
+        let now = Instant::now();
+        self.denied.retain(|_, expires_at| *expires_at > now);
+    }
+}
+
+/// Decode token claims without full validation (for getting expiry on logout).
+pub fn decode_claims_unvalidated(token: &str, config: &JwtConfig) -> Result<Claims> {
+    let mut validation = Validation::default();
+    validation.validate_exp = false;
+    decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(config.secret.as_bytes()),
+        &validation,
+    )
+    .map(|data| data.claims)
+    .map_err(|_| AppError::Unauthorized("Invalid token".to_string()))
 }
 
 #[cfg(test)]

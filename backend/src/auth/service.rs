@@ -69,15 +69,7 @@ impl AuthService {
 
     pub async fn validate_session(token: &str, jwt_config: &JwtConfig) -> Result<Session> {
         let claims = validate_token(token, jwt_config)?;
-
-        let role = crate::auth::model::UserRole::try_from(claims.role.as_str())
-            .map_err(|e| AppError::Internal(e))?;
-
-        Ok(Session {
-            user_id: claims.sub,
-            username: claims.username,
-            role,
-        })
+        crate::auth::handler::session_from_claims(claims)
     }
 
     pub async fn create_user(
